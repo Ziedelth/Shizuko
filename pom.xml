@@ -6,10 +6,9 @@
 
     <artifactId>shizuko</artifactId>
     <groupId>fr.ziedelth</groupId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
-
-    <name>consoleApp</name>
+    <name>shizuko</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -65,6 +64,14 @@
                     <mainClass>MainKt</mainClass>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${kotlin.compiler.jvmTarget}</source>
+                    <target>${kotlin.compiler.jvmTarget}</target>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -86,6 +93,10 @@
             <artifactId>kotlin-stdlib-jdk8</artifactId>
             <version>1.8.21</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
     </dependencies>
-
 </project>

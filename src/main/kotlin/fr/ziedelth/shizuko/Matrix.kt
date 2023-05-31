@@ -1,30 +1,28 @@
 package fr.ziedelth.shizuko
 
-import java.util.Random
+import java.util.*
 
 data class Matrix(
-    val rows: Int,
-    val columns: Int,
-    private var data: DoubleArray = DoubleArray(rows * columns)
+    private val rows: Int,
+    private val columns: Int,
+    private val data: DoubleArray = DoubleArray(rows * columns),
 ) {
-    @Transient
-    private val indices = data.indices
     @Transient
     private val random = Random()
 
-    fun get(row: Int, column: Int): Double {
-        return data[row * columns + column]
+    fun get(x: Int, y: Int): Double {
+        return data[x * columns + y]
     }
 
-    fun set(row: Int, column: Int, value: Double) {
-        data[row * columns + column] = value
+    fun set(x: Int, y: Int, value: Double) {
+        data[x * columns + y] = value
     }
 
     fun map(function: (Double, Int, Int) -> Double): Matrix {
-        indices.forEach { index ->
-            val x = index % columns
-            val y = index / columns
-            set(y, x, function(get(y, x), y, x))
+        data.indices.forEach { index ->
+            val x = index / columns
+            val y = index % columns
+            data[index] = function(data[index], x, y)
         }
 
         return this
@@ -66,14 +64,14 @@ data class Matrix(
 
     fun toArray(): DoubleArray {
         val result = DoubleArray(rows * columns)
-        indices.forEach { index -> result[index] = data[index] }
+        System.arraycopy(data, 0, result, 0, rows * columns)
         return result
     }
 
     companion object {
         fun fromArray(array: DoubleArray): Matrix {
             val result = Matrix(array.size, 1)
-            array.indices.forEach { row -> result.set(row, 0, array[row]) }
+            System.arraycopy(array, 0, result.data, 0, array.size)
             return result
         }
     }

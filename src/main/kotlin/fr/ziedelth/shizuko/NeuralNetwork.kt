@@ -1,5 +1,7 @@
 package fr.ziedelth.shizuko
 
+import com.google.gson.Gson
+import java.io.File
 import kotlin.math.exp
 
 private interface IFunction {
@@ -87,6 +89,16 @@ data class NeuralNetwork(
             weights[it - 1] = weights[it - 1].add(deltas)
             val previousError = weights[it - 1].transpose().multiply(errors)
             targets = previousError
+        }
+    }
+
+    fun save(file: File) {
+        file.writeText(Gson().toJson(this))
+    }
+
+    companion object {
+        fun load(file: File): NeuralNetwork {
+            return Gson().fromJson(file.readText(), NeuralNetwork::class.java)
         }
     }
 }
