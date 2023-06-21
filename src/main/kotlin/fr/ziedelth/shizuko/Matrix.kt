@@ -1,14 +1,15 @@
 package fr.ziedelth.shizuko
 
 import java.util.*
+import kotlin.math.pow
 
 data class Matrix(
     private val rows: Int,
     private val columns: Int,
-    private val data: DoubleArray = DoubleArray(rows * columns),
+    var data: DoubleArray = DoubleArray(rows * columns),
 ) {
     @Transient
-    private val random = Random()
+    val columnInversed: Double = 1.0 / columns
 
     fun get(x: Int, y: Int): Double {
         return data[x * columns + y]
@@ -19,8 +20,8 @@ data class Matrix(
     }
 
     fun map(function: (Double, Int, Int) -> Double): Matrix {
-        data.indices.forEach { index ->
-            val x = index / columns
+        for (index in data.indices) {
+            val x = (index * columnInversed).toInt()
             val y = index % columns
             data[index] = function(data[index], x, y)
         }
@@ -28,7 +29,7 @@ data class Matrix(
         return this
     }
 
-    fun randomize(min: Double = -1.0, max: Double = 1.0): Matrix {
+    fun randomize(random: Random, min: Double = -1.0, max: Double = 1.0): Matrix {
         return map { _, _, _ -> random.nextDouble() * (max - min) + min }
     }
 
@@ -53,7 +54,9 @@ data class Matrix(
     fun multiply(other: Matrix): Matrix {
         return Matrix(rows, other.columns).map { _, x, y ->
             var sum = 0.0
-            (0 until columns).forEach { i -> sum += get(x, i) * other.get(i, y) }
+            for (i in 0 until columns) {
+                sum += get(x, i) * other.get(i, y)
+            }
             sum
         }
     }
@@ -66,6 +69,18 @@ data class Matrix(
         val result = DoubleArray(rows * columns)
         System.arraycopy(data, 0, result, 0, rows * columns)
         return result
+    }
+
+    fun copy(): Matrix {
+        return Matrix(rows, columns, data.copyOf())
+    }
+
+    fun pow(power: Double): Matrix {
+        return map { `val`, _, _ -> `val`.pow(power) }
+    }
+
+    fun mean(): Double {
+        return data.sum() / data.size
     }
 
     companion object {
