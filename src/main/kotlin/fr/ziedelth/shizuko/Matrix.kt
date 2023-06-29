@@ -1,16 +1,17 @@
 package fr.ziedelth.shizuko
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.math.pow
 
 data class Matrix(
-    private val rows: Int,
-    private val columns: Int,
+    var rows: Int,
+    private var columns: Int,
     var data: DoubleArray = DoubleArray(rows * columns),
 ) {
-    @Transient
-    val columnInversed: Double = 1.0 / columns
-
     fun get(x: Int, y: Int): Double {
         return data[x * columns + y]
     }
@@ -21,7 +22,7 @@ data class Matrix(
 
     fun map(function: (Double, Int, Int) -> Double): Matrix {
         for (index in data.indices) {
-            val x = (index * columnInversed).toInt()
+            val x = (index * (1.0 / columns)).toInt()
             val y = index % columns
             data[index] = function(data[index], x, y)
         }
@@ -34,35 +35,82 @@ data class Matrix(
     }
 
     fun add(other: Matrix): Matrix {
-        return map { `val`, x, y -> `val` + other.get(x, y) }
+        for (index in data.indices) {
+            data[index] += other.data[index]
+        }
+
+        return this
     }
 
     fun subtract(other: Matrix): Matrix {
-        return map { `val`, x, y -> `val` - other.get(x, y) }
+        for (index in data.indices) {
+            data[index] -= other.data[index]
+        }
+
+        return this
     }
 
     fun transpose(): Matrix {
         val result = Matrix(columns, rows)
-        result.map { _, x, y -> get(y, x) }
+
+        for (x in 0 until rows) {
+            for (y in 0 until columns) {
+                result.set(y, x, get(x, y))
+            }
+        }
+
         return result
     }
 
     fun elementMult(other: Matrix): Matrix {
-        return map { `val`, x, y -> `val` * other.get(x, y) }
+        for (index in data.indices) {
+            data[index] *= other.data[index]
+        }
+
+        return this
     }
 
     fun multiply(other: Matrix): Matrix {
-        return Matrix(rows, other.columns).map { _, x, y ->
-            var sum = 0.0
-            for (i in 0 until columns) {
-                sum += get(x, i) * other.get(i, y)
+        val columns = other.columns
+        val result = DoubleArray(rows * columns)
+
+        if (rows * columns <= 512) {
+            for (x in 0 until rows) {
+                for (y in 0 until columns) {
+                    var sum = 0.0
+                    for (i in 0 until this.columns) {
+                        sum += get(x, i) * other.get(i, y)
+                    }
+                    result[x * columns + y] = sum
+                }
             }
-            sum
+        } else {
+            runBlocking {
+                coroutineScope {
+                    for (x in 0 until rows) {
+                        launch {
+                            for (y in 0 until columns) {
+                                var sum = 0.0
+                                for (i in 0 until this@Matrix.columns) {
+                                    sum += get(x, i) * other.get(i, y)
+                                }
+                                result[x * columns + y] = sum
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        return Matrix(rows, columns, result)
     }
 
     fun scale(scalar: Double): Matrix {
-        return map { `val`, _, _ -> `val` * scalar }
+        for (index in data.indices) {
+            data[index] *= scalar
+        }
+
+        return this
     }
 
     fun toArray(): DoubleArray {
@@ -76,11 +124,19 @@ data class Matrix(
     }
 
     fun pow(power: Double): Matrix {
-        return map { `val`, _, _ -> `val`.pow(power) }
+        for (index in data.indices) {
+            data[index] = data[index].pow(power)
+        }
+
+        return this
     }
 
     fun mean(): Double {
-        return data.sum() / data.size
+        return data.average()
+    }
+
+    fun sum(): Double {
+        return data.sum()
     }
 
     companion object {

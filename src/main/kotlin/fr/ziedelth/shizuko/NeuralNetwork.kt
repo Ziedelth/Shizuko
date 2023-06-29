@@ -4,6 +4,8 @@ import com.google.gson.Gson
 import java.io.File
 import java.util.*
 import kotlin.math.exp
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 private interface IFunction {
     fun apply(matrix: Matrix): Matrix
@@ -83,7 +85,26 @@ data class NeuralNetwork(
         return inputs.toArray()
     }
 
-    fun train(inputArray: DoubleArray, targetArray: DoubleArray): Double {
+    fun meanSquaredError(actual: DoubleArray, expected: DoubleArray): Double {
+        var sum = 0.0
+        for (i in actual.indices) {
+            sum += (actual[i] - expected[i]).pow(2.0)
+        }
+        return 1.0 / actual.size * sum
+    }
+
+    fun accuracy(actual: DoubleArray, expected: DoubleArray): Double {
+        var correct = 0
+        // actual can be between 0 and 1, so we round it to 0 or 1
+        for (i in actual.indices) {
+            if (actual[i].roundToInt() == expected[i].roundToInt()) {
+                correct++
+            }
+        }
+        return correct.toDouble() / actual.size
+    }
+
+    fun train(inputArray: DoubleArray, targetArray: DoubleArray) {
         var inputs = Matrix.fromArray(inputArray)
         var targets = Matrix.fromArray(targetArray)
 
@@ -95,11 +116,8 @@ data class NeuralNetwork(
             inputs = layers[i]!!
         }
 
-        var loss = 0.0
-
         for (i in (hiddenLayers + 1) downTo 1) {
             val errors = targets.subtract(layers[i]!!)
-            loss += errors.copy().pow(2.0).mean()
             val gradients = calculateGradient(layers[i]!!, errors)
             val deltas = calculateDeltas(gradients, layers[i - 1]!!)
             biases[i - 1] = biases[i - 1].add(gradients)
@@ -107,8 +125,6 @@ data class NeuralNetwork(
             val previousError = weights[i - 1].transpose().multiply(errors)
             targets = previousError
         }
-
-        return loss / (hiddenLayers + 1).toDouble()
     }
 
     fun save(file: File) {

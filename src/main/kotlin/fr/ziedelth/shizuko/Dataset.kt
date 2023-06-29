@@ -1,7 +1,6 @@
 package fr.ziedelth.shizuko
 
 import com.google.gson.Gson
-import fr.ziedelth.shizuko.Parallelism.parallelForEach
 import fr.ziedelth.shizuko.utils.Chart
 import javafx.scene.chart.XYChart
 import java.io.File
@@ -35,25 +34,47 @@ data class Dataset(
         file.writeText(Gson().toJson(this))
     }
 
-    fun getRandomBatch(batchSize: Int): List<Collection<Data>> {
-        return trainingSet.shuffled().chunked(batchSize)
-    }
+    fun train(neuralNetwork: NeuralNetwork, epochs: Int) {
+        val lossChart = Chart("Epochs", "Average loss")
+        val accuracyChart = Chart("Epochs", "Accuracy")
 
-    fun train(neuralNetwork: NeuralNetwork, batchSize: Int, epochs: Int) {
-        val chart = Chart("Epochs", "Average")
+        val avgTrainingLossSeries = XYChart.Series<Number, Number>()
+        avgTrainingLossSeries.name = "Training set"
+        val avgTestLossSeries = XYChart.Series<Number, Number>()
+        avgTestLossSeries.name = "Test set"
 
-        val avgLossSeries = XYChart.Series<Number, Number>()
-        avgLossSeries.name = "Average loss"
+        val avgTrainingAccuracySeries = XYChart.Series<Number, Number>()
+        avgTrainingAccuracySeries.name = "Training set"
+        val avgTestAccuracySeries = XYChart.Series<Number, Number>()
+        avgTestAccuracySeries.name = "Test set"
 
         val times = mutableListOf<Long>()
 
         for (i in 1..epochs) {
-            val losses = mutableListOf<Double>()
+            val evaluate = i == 1 || i % 10 == 0
+
+            val trainingLosses = mutableListOf<Double>()
+            val testLosses = mutableListOf<Double>()
+            val trainingAccuracies = mutableListOf<Double>()
+            val testAccuracies = mutableListOf<Double>()
 
             times.add(measureTimeMillis {
-                for (batch in getRandomBatch(batchSize)) {
-                    for (data in batch) {
-                        losses.add(neuralNetwork.train(data.inputs, data.outputs))
+                for (data in trainingSet) {
+                    neuralNetwork.train(data.inputs, data.outputs)
+                }
+
+                if (evaluate) {
+                    // Evaluate the model
+                    for (data in trainingSet) {
+                        val predicted = neuralNetwork.feedForward(data.inputs)
+                        trainingLosses.add(neuralNetwork.meanSquaredError(predicted, data.outputs))
+                        trainingAccuracies.add(neuralNetwork.accuracy(predicted, data.outputs))
+                    }
+
+                    for (data in testSet) {
+                        val predictedOutputs = neuralNetwork.feedForward(data.inputs)
+                        testLosses.add(neuralNetwork.meanSquaredError(predictedOutputs, data.outputs))
+                        testAccuracies.add(neuralNetwork.accuracy(predictedOutputs, data.outputs))
                     }
                 }
             })
@@ -61,17 +82,22 @@ data class Dataset(
             val remainingTimeMs = (epochs - i) * times.average()
             drawProgressbar(i.toDouble() / epochs, remainingTimeMs = remainingTimeMs)
 
-            if (i % 10 == 0 && avgLossSeries.data.none { xy -> xy.xValue.toInt() == i }) {
+            if (evaluate) {
                 try {
-                    avgLossSeries.data.add(XYChart.Data(i, losses.average()))
-                    chart.save(File("chart.png"), avgLossSeries)
+                    avgTrainingLossSeries.data.add(XYChart.Data(i, trainingLosses.average()))
+                    avgTestLossSeries.data.add(XYChart.Data(i, testLosses.average()))
+                    lossChart.save(File("loss-chart.png"), avgTrainingLossSeries, avgTestLossSeries)
+
+                    avgTrainingAccuracySeries.data.add(XYChart.Data(i, trainingAccuracies.average()))
+                    avgTestAccuracySeries.data.add(XYChart.Data(i, testAccuracies.average()))
+                    accuracyChart.save(File("accuracy-chart.png"), avgTrainingAccuracySeries, avgTestAccuracySeries)
                 } catch (e: Exception) {
                     println("Couldn't save chart: ${e.message}")
                 }
             }
         }
 
-        chart.close()
+        lossChart.close()
     }
 
     companion object {
