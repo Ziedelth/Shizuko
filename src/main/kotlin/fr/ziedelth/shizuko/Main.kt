@@ -14,4 +14,5 @@ fun main() {
 
     val loadedNeuralNetwork = NeuralNetwork.load(File("neural-network.json"))
     println("Loaded neural network: $loadedNeuralNetwork")
+    println(neuralNetwork.feedForward(dataset.testSet.first().inputs).contentToString())
 }

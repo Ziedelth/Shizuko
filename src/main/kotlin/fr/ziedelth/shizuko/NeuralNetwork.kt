@@ -15,7 +15,7 @@ fun toMatrix(array: DoubleArray): SimpleMatrix {
     return SimpleMatrix(arrayOf(array)).transpose()
 }
 
-interface IFunction {
+private interface IFunction {
     fun apply(matrix: SimpleMatrix): SimpleMatrix
     fun applyDerivative(matrix: SimpleMatrix): SimpleMatrix
 }
@@ -79,10 +79,10 @@ data class NeuralNetwork(
     private val activationFunction: String = "sigmoid",
 ) {
     @Transient
-    private val random = Random()
+    private var random = Random()
 
     @Transient
-    private val function: IFunction =
+    private var function: IFunction =
         functions[activationFunction] ?: error("Unknown activation function: $activationFunction")
 
     private val weights: Array<SimpleMatrix> = Array(hiddenLayers + 1) {
@@ -201,12 +201,16 @@ data class NeuralNetwork(
         }
 
         fun load(file: File): NeuralNetwork {
-            return getGson().fromJson(file.readText(), NeuralNetwork::class.java)
+            val neuralNetwork = getGson().fromJson(file.readText(), NeuralNetwork::class.java)
+            neuralNetwork.random = Random()
+            neuralNetwork.function = functions[neuralNetwork.activationFunction]
+                ?: error("Unknown activation function: ${neuralNetwork.activationFunction}")
+            return neuralNetwork
         }
     }
 }
 
-class InterfaceAdapter<T> : JsonSerializer<T>, JsonDeserializer<T> {
+private class InterfaceAdapter<T> : JsonSerializer<T>, JsonDeserializer<T> {
     override fun serialize(`object`: T, interfaceType: Type, context: JsonSerializationContext): JsonElement {
         val o = `object` ?: return JsonNull.INSTANCE
 
