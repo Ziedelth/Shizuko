@@ -3,19 +3,36 @@ package fr.ziedelth.shizuko
 import com.google.gson.Gson
 import fr.ziedelth.shizuko.utils.Chart
 import javafx.scene.chart.XYChart
+import org.ejml.simple.SimpleMatrix
 import java.io.File
 import kotlin.system.measureTimeMillis
 
 data class Data(
     val inputs: DoubleArray,
     val outputs: DoubleArray,
-)
+) {
+    @Transient
+    lateinit var inputMatrix: SimpleMatrix
+
+    @Transient
+    lateinit var outputMatrix: SimpleMatrix
+
+    fun loadMatrices() {
+        inputMatrix = toMatrix(inputs)
+        outputMatrix = toMatrix(outputs)
+    }
+}
 
 data class Dataset(
     val trainingSet: Collection<Data>,
     val testSet: Collection<Data>,
 ) {
-    private fun drawProgressbar(progress: Double, length: Int = 50, redraw: Boolean = true, remainingTimeMs: Double? = null) {
+    private fun drawProgressbar(
+        progress: Double,
+        length: Int = 50,
+        redraw: Boolean = true,
+        remainingTimeMs: Double? = null
+    ) {
         val copyProgressBar = " ".repeat(length).toCharArray()
         val currentPosition = (copyProgressBar.size * progress).toInt()
         for (i in 0 until currentPosition) copyProgressBar[i] = '•'
@@ -60,7 +77,7 @@ data class Dataset(
 
             times.add(measureTimeMillis {
                 for (data in trainingSet) {
-                    neuralNetwork.train(data.inputs, data.outputs)
+                    neuralNetwork.train(data.inputMatrix, data.outputMatrix)
                 }
 
                 if (evaluate) {
@@ -102,7 +119,10 @@ data class Dataset(
 
     companion object {
         fun load(file: File): Dataset {
-            return Gson().fromJson(file.readText(), Dataset::class.java)
+            val data = Gson().fromJson(file.readText(), Dataset::class.java)
+            data.trainingSet.forEach { it.loadMatrices() }
+            data.testSet.forEach { it.loadMatrices() }
+            return data
         }
     }
 }
