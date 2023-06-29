@@ -7,8 +7,11 @@ fun main() {
     println("Training set size: ${dataset.trainingSet.size}")
     println("Test set size: ${dataset.testSet.size}")
 
-    val neuralNetwork = NeuralNetwork(24 * 24, 3, 32, 4)
+    val neuralNetwork = NeuralNetwork(24 * 24, 4, 32, 4)
     dataset.train(neuralNetwork, 200)
 
     neuralNetwork.save(File("neural-network.json"))
+
+    val loadedNeuralNetwork = NeuralNetwork.load(File("neural-network.json"))
+    println("Loaded neural network: $loadedNeuralNetwork")
 }

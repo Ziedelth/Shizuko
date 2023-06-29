@@ -1,8 +1,11 @@
 package fr.ziedelth.shizuko
 
-import com.google.gson.Gson
+import com.google.gson.*
+import org.ejml.data.Matrix
 import org.ejml.simple.SimpleMatrix
+import org.ejml.simple.SimpleOperations
 import java.io.File
+import java.lang.reflect.Type
 import java.util.*
 import kotlin.math.exp
 import kotlin.math.pow
@@ -12,7 +15,7 @@ fun toMatrix(array: DoubleArray): SimpleMatrix {
     return SimpleMatrix(arrayOf(array)).transpose()
 }
 
-private interface IFunction {
+interface IFunction {
     fun apply(matrix: SimpleMatrix): SimpleMatrix
     fun applyDerivative(matrix: SimpleMatrix): SimpleMatrix
 }
@@ -185,12 +188,38 @@ data class NeuralNetwork(
     }
 
     fun save(file: File) {
-        file.writeText(Gson().toJson(this))
+        file.writeText(getGson().toJson(this))
     }
 
     companion object {
-        fun load(file: File): NeuralNetwork {
-            return Gson().fromJson(file.readText(), NeuralNetwork::class.java)
+        private fun getGson(): Gson {
+            val gsonBuilder = GsonBuilder()
+            gsonBuilder.registerTypeAdapter(IFunction::class.java, InterfaceAdapter<IFunction>())
+            gsonBuilder.registerTypeAdapter(Matrix::class.java, InterfaceAdapter<Matrix>())
+            gsonBuilder.registerTypeAdapter(SimpleOperations::class.java, InterfaceAdapter<SimpleOperations<Matrix>>())
+            return gsonBuilder.create()
         }
+
+        fun load(file: File): NeuralNetwork {
+            return getGson().fromJson(file.readText(), NeuralNetwork::class.java)
+        }
+    }
+}
+
+class InterfaceAdapter<T> : JsonSerializer<T>, JsonDeserializer<T> {
+    override fun serialize(`object`: T, interfaceType: Type, context: JsonSerializationContext): JsonElement {
+        val o = `object` ?: return JsonNull.INSTANCE
+
+        return JsonObject().apply {
+            addProperty("type", o::class.java.name)
+            add("data", context.serialize(o))
+        }
+    }
+
+    override fun deserialize(jsonElement: JsonElement, interfaceType: Type, context: JsonDeserializationContext): T {
+        return context.deserialize(
+            jsonElement.asJsonObject["data"],
+            Class.forName(jsonElement.asJsonObject["type"].asString)
+        )
     }
 }
